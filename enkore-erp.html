@@ -600,25 +600,27 @@ function loadSession() {
   return false;
 }
 
+const FALLBACK_CREDS = [
+  { id: 'ADMIN',  pass: '1234', name: 'Admin' },
+  { id: 'EMP001', pass: '1234', name: 'Employee 1' },
+];
+
 async function fetchCredentials() {
-  // Fetches CSV from published Google Sheet
-  // Columns: EmployeeID, Password, Name
+  if (CREDS_SHEET_ID === 'REPLACE_WITH_YOUR_CREDENTIALS_SHEET_ID') {
+    return FALLBACK_CREDS;
+  }
   try {
     const r = await fetch(CREDS_CSV_URL);
+    if (!r.ok) return FALLBACK_CREDS;
     const csv = await r.text();
-    const lines = csv.trim().split('\n').slice(1); // skip header
-    return lines.map(l => {
+    const lines = csv.trim().split('\n').slice(1);
+    const parsed = lines.map(l => {
       const parts = l.split(',');
       return { id: (parts[0]||'').trim(), pass: (parts[1]||'').trim(), name: (parts[2]||'').trim() };
-    });
+    }).filter(c => c.id);
+    return parsed.length ? parsed : FALLBACK_CREDS;
   } catch(e) {
-    console.warn('Could not load credentials from sheet, using fallback.', e);
-    // ── FALLBACK LOCAL CREDENTIALS ──
-    // Add/edit employees here until your credentials sheet is set up:
-    return [
-      { id: 'ADMIN', pass: '1234', name: 'Admin' },
-      { id: 'EMP001', pass: '1234', name: 'Employee 1' },
-    ];
+    return FALLBACK_CREDS;
   }
 }
 
