@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ENKORE">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="application-name" content="ENKORE">
+<title>ENKORE ERP</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="https://enkorebd.com/wp-content/uploads/2026/03/cropped-WhatsApp_Image_2026-01-24_at_1.50.39_PM__1_-removebg-preview-270x270.png">
+<link rel="icon" href="https://enkorebd.com/wp-content/uploads/2026/03/cropped-WhatsApp_Image_2026-01-24_at_1.50.39_PM__1_-removebg-preview-270x270.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #181818;
+    --border: #222222;
+    --accent: #c8ff00;
+    --accent2: #00d4ff;
+    --text: #f0f0f0;
+    --muted: #666;
+    --danger: #ff4444;
+    --sidebar-w: 280px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%; width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── LOGIN SCREEN ── */
+  #login-screen {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+    transition: opacity .4s, transform .4s;
+  }
+  #login-screen.hidden { opacity: 0; pointer-events: none; transform: scale(1.04); }
+
+  .login-bg {
+    position: absolute; inset: 0; overflow: hidden;
+  }
+  .login-bg::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(200,255,0,0.08) 0%, transparent 70%);
+    top: -200px; right: -200px;
+  }
+  .login-bg::after {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%);
+    bottom: -100px; left: -100px;
+  }
+
+  .login-card {
+    position: relative; z-index: 1;
+    width: min(400px, calc(100vw - 40px));
+    padding: 48px 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 40px 80px rgba(0,0,0,.6);
+  }
+
+  .login-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .login-logo span { color: var(--accent); }
+
+  .login-tagline {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 36px;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+  }
+
+  .field {
+    margin-bottom: 16px;
+  }
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    transition: border-color .2s;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .field input::placeholder { color: #444; }
+
+  .remember-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 28px;
+    font-size: 13px; color: var(--muted);
+    cursor: pointer;
+  }
+  .remember-row input[type=checkbox] {
+    width: 16px; height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .btn-login {
+    width: 100%;
+    padding: 15px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: opacity .2s, transform .15s;
+  }
+  .btn-login:hover { opacity: .9; transform: translateY(-1px); }
+  .btn-login:active { transform: translateY(0); }
+
+  .login-error {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(255,68,68,0.1);
+    border: 1px solid rgba(255,68,68,0.3);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--danger);
+    display: none;
+  }
+  .login-error.show { display: block; }
+
+  /* ── MAIN APP ── */
+  #app {
+    display: flex;
+    height: 100dvh;
+    transition: opacity .4s;
+    opacity: 0;
+  }
+  #app.visible { opacity: 1; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+    transform: translateX(0);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    z-index: 50;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  #sidebar.closed { transform: translateX(calc(-1 * var(--sidebar-w))); }
+
+  .sidebar-header {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .app-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+  .app-logo span { color: var(--accent); }
+  .app-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+
+  .user-pill {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .user-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    color: #000;
+    flex-shrink: 0;
+  }
+  .user-name { font-size: 13px; font-weight: 500; }
+  .user-id { font-size: 11px; color: var(--muted); }
+
+  .nav-section { padding: 12px 12px 0; }
+  .nav-section-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 8px;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .nav-item {
+    display: flex; align-items: center;
+    padding: 11px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .15s;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text);
+    text-decoration: none;
+    margin-bottom: 2px;
+    user-select: none;
+  }
+  .nav-item:hover { background: var(--surface2); }
+  .nav-item.active { background: rgba(200,255,0,0.1); color: var(--accent); }
+  .nav-item .nav-icon { font-size: 16px; flex-shrink: 0; width: 20px; text-align: center; }
+  .nav-item .nav-label { flex: 1; }
+  .nav-item .nav-chevron {
+    font-size: 10px; color: var(--muted);
+    transition: transform .2s;
+    flex-shrink: 0;
+  }
+  .nav-item.open .nav-chevron { transform: rotate(90deg); }
+
+  .sub-items {
+    padding-left: 20px;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height .3s ease;
+  }
+  .sub-items.open { max-height: 400px; }
+
+  .sub-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #aaa;
+    transition: background .15s, color .15s;
+    text-decoration: none;
+    margin-bottom: 2px;
+  }
+  .sub-item:hover { background: var(--surface2); color: var(--text); }
+  .sub-item .file-icon { width: 18px; height: 18px; flex-shrink: 0; }
+  .sub-item .ext-arrow { margin-left: auto; font-size: 11px; color: #444; flex-shrink: 0; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 12px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .btn-logout {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ── MAIN CONTENT ── */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 20px;
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+    z-index: 10;
+  }
+
+  .hamburger {
+    background: none; border: none;
+    cursor: pointer; padding: 8px;
+    border-radius: 8px;
+    color: var(--text);
+    display: flex; flex-direction: column;
+    gap: 4px;
+    transition: background .15s;
+  }
+  .hamburger:hover { background: var(--surface2); }
+  .hamburger span {
+    display: block; width: 20px; height: 2px;
+    background: currentColor;
+    border-radius: 2px;
+    transition: transform .25s, opacity .25s;
+  }
+  .hamburger.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+  .topbar-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    flex: 1;
+  }
+  .topbar-date {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* content area */
+  #content-area {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+  }
+
+  /* Welcome / Dashboard */
+  #welcome-panel {
+    height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px;
+    text-align: center;
+  }
+  .welcome-icon { font-size: 56px; margin-bottom: 20px; }
+  .welcome-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+  .welcome-sub { color: var(--muted); font-size: 15px; max-width: 360px; line-height: 1.6; }
+
+  .dept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 32px;
+    width: 100%; max-width: 600px;
+  }
+  .dept-card {
+    padding: 18px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s;
+    text-align: left;
+  }
+  .dept-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .dept-card-icon { font-size: 24px; margin-bottom: 8px; }
+  .dept-card-name { font-size: 13px; font-weight: 500; line-height: 1.3; }
+
+
+
+  /* overlay for sidebar on mobile */
+  #sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 40;
+  }
+  #sidebar-overlay.visible { display: block; }
+
+  /* ── MOBILE ── */
+  @media (max-width: 640px) {
+    :root { --sidebar-w: 260px; }
+
+    #sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+    }
+    #sidebar.closed { transform: translateX(calc(-1 * var(--sidebar-w))); }
+
+    .topbar-date { display: none; }
+    .login-card { padding: 36px 24px; }
+  }
+
+  /* scrollbar styling */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <img src="https://enkorebd.com/wp-content/uploads/2026/03/WhatsApp_Image_2026-01-24_at_1.50.39_PM__1_-removebg-preview.png" alt="ENKORE" style="height:52px;object-fit:contain;margin-bottom:10px;display:block;">
+    <div class="login-tagline">Internal Operations Portal</div>
+
+    <div class="field">
+      <label>Employee ID</label>
+      <input type="text" id="emp-id" placeholder="e.g. EMP001" autocomplete="username" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="emp-pass" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+
+    <label class="remember-row">
+      <input type="checkbox" id="remember-me" checked>
+      Remember me on this device
+    </label>
+
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error">Incorrect Employee ID or Password</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <img src="https://enkorebd.com/wp-content/uploads/2026/03/WhatsApp_Image_2026-01-24_at_1.50.39_PM__1_-removebg-preview.png" alt="ENKORE" style="height:36px;object-fit:contain;display:block;">
+      <div class="app-subtitle">ERP Portal</div>
+      <div class="user-pill">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div>
+          <div class="user-name" id="user-name-display">—</div>
+          <div class="user-id" id="user-id-display">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-section" style="padding-top:16px;">
+      <div class="nav-section-label">Overview</div>
+      <div class="nav-item active" id="nav-home" onclick="showHome()">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Dashboard</span>
+      </div>
+    </div>
+
+    <div class="nav-section" id="dept-nav" style="padding-bottom:16px;"></div>
+
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div class="topbar">
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-date" id="topbar-date"></div>
+    </div>
+
+    <div id="content-area">
+      <div id="welcome-panel">
+        <div class="welcome-icon">📊</div>
+        <div class="welcome-title">Welcome back, <span id="welcome-name">—</span></div>
+        <div class="welcome-sub">Select a department from the sidebar or tap a card below to browse your files.</div>
+        <div class="dept-grid" id="dept-cards"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+// Employee credentials are validated against the Google Sheet (SHEET_ID below).
+// For offline / first-load fallback, you can also hardcode IDs here.
+// The sheet should have columns: Employee ID | Password | Name
+const CREDS_SHEET_ID = 'REPLACE_WITH_YOUR_CREDENTIALS_SHEET_ID';
+// Set this to the published CSV URL of your credentials sheet:
+// File → Share → Publish to Web → CSV → copy link
+// Example: https://docs.google.com/spreadsheets/d/SHEET_ID/pub?output=csv
+const CREDS_CSV_URL  = `https://docs.google.com/spreadsheets/d/${CREDS_SHEET_ID}/pub?output=csv`;
+
+// ─── DRIVE STRUCTURE ─────────────────────────────────────────────────────────
+const DEPARTMENTS = [
+  {
+    id: 'ops', icon: '⚙️', label: '1. Operations (Admin)',
+    children: [
+      { label: 'Enkore (Company Profile)', type: 'doc',   url: 'https://docs.google.com/document/d/1fsmbkfm0vpc-3gdBDLHtWYWi9CoPV6UVWDjWrNEmKwI/edit' },
+      { label: 'Checklists Management',    type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1ieDTyHxpqDTh2Dqme1rdd5B8NpxWIVNlAQGFAgF86TQ/edit' },
+      { label: 'HR & Payroll',             type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1RMlfgJXj5BZv5yJPwY-OJ8W8phpqBLvL9dJMXbwcXks/edit' },
+    ]
+  },
+  {
+    id: 'ir', icon: '💼', label: '2. Investor Relations',
+    children: [
+      { label: 'Investor Relations', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1HYtXqapEaZBBmTUHS--wPOjoXt6pCLKao9N07zOOyv8/edit' },
+    ]
+  },
+  {
+    id: 'fin', icon: '💰', label: '3. Finance',
+    children: [
+      { label: 'Track of Expenses', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1Eh0cqiK51gvSHO2VHiTIT7W1ljdlNJxgVvo-pzxVHpc/edit' },
+      { label: 'Central Finance',   type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1XE05NQJYc2QPM1qUivoGYUynu-lI1iaTH5Y785dPwJk/edit' },
+    ]
+  },
+  {
+    id: 'mkt', icon: '📣', label: '4. Marketing',
+    children: [
+      { label: 'Marketing Plans',  type: 'doc',   url: 'https://docs.google.com/document/d/1ieDj-kakrlQBWS28Gb_DJqVro1pq6mHrH5HAnTItyok/edit' },
+      { label: 'Retail Marketing', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/11QiSv3mlN0HszCzNebPIjm1616teBOiCCgPlfH3rbWc/edit' },
+      { label: 'ENKORE Form',      type: 'form',  url: 'https://docs.google.com/forms/d/1nkIUkCgtc2_qpOVMkJHaWjJoSQ5GrSdunRBreUWjnIA/edit' },
+    ]
+  },
+  {
+    id: 'pp', icon: '🏭', label: '5. Planning & Production',
+    children: [
+      { label: 'R&D Bike and Car Wash', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1IH4S12rksmoopiO0cLfDmOlDkH-_R7Qbt1naIiXlseU/edit' },
+      { label: 'R&D Polish',            type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1_23d-ao24xD1Ikqz7pZl9RsSIj0koW0wc0Iec4BCelg/edit' },
+      { label: 'Production & Packaging',type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1iBGsae1XY1Q2xb0LHUpa75ze-yalu48LjWZ6JJDk-iY/edit' },
+    ]
+  },
+  {
+    id: 'sc', icon: '🚚', label: '6. Supply Chain',
+    children: [
+      { label: 'General Store',       type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1qabGZv2itZmj0mZNT9fE9eBuvaH8HMvjJgM3zJTDtwo/edit' },
+      { label: 'Transportation',      type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/12CUEKoEImu4H86ikUP8-8U0AB8iIxNm3j7kB8Yg9OMs/edit' },
+      { label: 'Stock Management',    type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1jnh-2pVY7ogwc4VA2z4RfyOFmVf3FjxoelCj3LqUNFY/edit' },
+      { label: 'Raw Material List',   type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1V6dGHnoyHUKK8OCm0c2CwAH0HHNs7xljE_NT2Ty6Mm8/edit' },
+      { label: 'Customer Management', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1IaXhPmOzon-NhxcXI5QNeIFecrsVzlOjD0oYVXJb0oU/edit' },
+    ]
+  },
+  {
+    id: 'sales', icon: '📈', label: '7. Sales',
+    children: [
+      { label: 'Invoice', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1jK0vpgaPMGROHQrA34b0zpNLTxS0DsL3opFzEaB_Anw/edit' },
+      { label: 'Sales',   type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1IQ9osZGRHOYN_7UtioTOpkAF92wQ9TvNR31jZWop_Lg/edit' },
+    ]
+  },
+];
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+let currentUser = null;
+
+// Try to load remembered session
+function loadSession() {
+  const saved = localStorage.getItem('enkore_session');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      return true;
+    } catch(e) {}
+  }
+  return false;
+}
+
+async function fetchCredentials() {
+  // Fetches CSV from published Google Sheet
+  // Columns: EmployeeID, Password, Name
+  try {
+    const r = await fetch(CREDS_CSV_URL);
+    const csv = await r.text();
+    const lines = csv.trim().split('\n').slice(1); // skip header
+    return lines.map(l => {
+      const parts = l.split(',');
+      return { id: (parts[0]||'').trim(), pass: (parts[1]||'').trim(), name: (parts[2]||'').trim() };
+    });
+  } catch(e) {
+    console.warn('Could not load credentials from sheet, using fallback.', e);
+    // ── FALLBACK LOCAL CREDENTIALS ──
+    // Add/edit employees here until your credentials sheet is set up:
+    return [
+      { id: 'ADMIN', pass: '1234', name: 'Admin' },
+      { id: 'EMP001', pass: '1234', name: 'Employee 1' },
+    ];
+  }
+}
+
+async function doLogin() {
+  const idVal   = document.getElementById('emp-id').value.trim().toUpperCase();
+  const passVal = document.getElementById('emp-pass').value.trim();
+  const remember = document.getElementById('remember-me').checked;
+  const err = document.getElementById('login-error');
+
+  if (!idVal || !passVal) { err.textContent = 'Please enter both fields.'; err.classList.add('show'); return; }
+
+  const creds = await fetchCredentials();
+  const match = creds.find(c => c.id.toUpperCase() === idVal && c.pass === passVal);
+
+  if (!match) {
+    err.textContent = 'Incorrect Employee ID or Password.';
+    err.classList.add('show');
+    return;
+  }
+
+  err.classList.remove('show');
+  currentUser = { id: match.id, name: match.name || match.id };
+
+  if (remember) {
+    localStorage.setItem('enkore_session', JSON.stringify(currentUser));
+  }
+
+  enterApp();
+}
+
+function doLogout() {
+  localStorage.removeItem('enkore_session');
+  currentUser = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('emp-id').value = '';
+  document.getElementById('emp-pass').value = '';
+}
+
+// allow Enter key to login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('login-screen').classList.contains('hidden')) {
+    doLogin();
+  }
+});
+
+// ─── ENTER APP ───────────────────────────────────────────────────────────────
+function enterApp() {
+  const name = currentUser.name || currentUser.id;
+  const initials = name.slice(0,2).toUpperCase();
+
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('user-name-display').textContent = name;
+  document.getElementById('user-id-display').textContent = 'ID: ' + currentUser.id;
+  document.getElementById('welcome-name').textContent = name.split(' ')[0];
+
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.add('visible');
+
+  buildNav();
+  buildDeptCards();
+  updateDate();
+}
+
+// ─── FILE TYPE ICONS (real Google SVG logos) ─────────────────────────────────
+function fileIcon(type) {
+  if (type === 'sheet') return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#0F9D58"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#87CEAC"/><path d="M4 10h10v1H4zm0 2h10v1H4zm0 2h7v1H4z" fill="#fff"/><path d="M4 8h10v1.5H4z" fill="#fff"/></svg>`;
+  if (type === 'doc')   return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#4285F4"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#A8C7FA"/><path d="M4 9h10v1H4zm0 2h10v1H4zm0 2h7v1H4z" fill="#fff"/></svg>`;
+  if (type === 'form')  return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#7B4EA6"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#C4A8E8"/><circle cx="5.5" cy="9" r="1" fill="#fff"/><circle cx="5.5" cy="12" r="1" fill="#fff"/><path d="M7.5 8.5h5v1h-5zm0 3h5v1h-5z" fill="#fff"/></svg>`;
+  if (type === 'pdf')   return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#EA4335"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#F8ABA6"/><text x="3" y="15" font-size="5" fill="#fff" font-family="sans-serif" font-weight="bold">PDF</text></svg>`;
+  return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#5F6368"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#BDC1C6"/></svg>`;
+}
+
+// ─── NAV BUILDER ─────────────────────────────────────────────────────────────
+function buildNav() {
+  const nav = document.getElementById('dept-nav');
+  nav.innerHTML = '<div class="nav-section-label">Departments</div>';
+
+  DEPARTMENTS.forEach(dept => {
+    const wrap = document.createElement('div');
+
+    const item = document.createElement('div');
+    item.className = 'nav-item';
+    item.innerHTML = `<span class="nav-icon">${dept.icon}</span>
+                      <span class="nav-label">${dept.label}</span>
+                      <span class="nav-chevron">›</span>`;
+    item.onclick = () => toggleNav(dept.id);
+    item.id = 'nav-dept-' + dept.id;
+    wrap.appendChild(item);
+
+    const sub = document.createElement('div');
+    sub.className = 'sub-items';
+    sub.id = 'sub-' + dept.id;
+    sub.innerHTML = buildSubItems(dept.children);
+    wrap.appendChild(sub);
+
+    nav.appendChild(wrap);
+  });
+}
+
+function buildSubItems(children) {
+  if (!children || children.length === 0) return '<div style="padding:8px 12px;font-size:12px;color:#555;">No files yet</div>';
+  return children.map(c => {
+    return `<div class="sub-item" onclick="openFile('${c.url}')">
+              ${fileIcon(c.type)}
+              <span style="flex:1">${c.label}</span>
+              <span class="ext-arrow">↗</span>
+            </div>`;
+  }).join('');
+}
+
+let openDept = null;
+function toggleNav(id) {
+  const item = document.getElementById('nav-dept-' + id);
+  const sub  = document.getElementById('sub-' + id);
+
+  if (openDept && openDept !== id) {
+    document.getElementById('nav-dept-' + openDept)?.classList.remove('open');
+    document.getElementById('sub-' + openDept)?.classList.remove('open');
+  }
+
+  const isOpen = sub.classList.contains('open');
+  item.classList.toggle('open', !isOpen);
+  sub.classList.toggle('open', !isOpen);
+  openDept = isOpen ? null : id;
+}
+
+// ─── DEPT CARDS ──────────────────────────────────────────────────────────────
+function buildDeptCards() {
+  const grid = document.getElementById('dept-cards');
+  grid.innerHTML = DEPARTMENTS.map(d => `
+    <div class="dept-card" onclick="toggleNav('${d.id}');openSidebar();">
+      <div class="dept-card-icon">${d.icon}</div>
+      <div class="dept-card-name">${d.label}</div>
+    </div>
+  `).join('');
+}
+
+// ─── OPEN FILE IN NEW TAB ─────────────────────────────────────────────────────
+function openFile(url) {
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  closeSidebar();
+}
+
+function showHome() {
+  document.getElementById('topbar-title').textContent = 'Dashboard';
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('nav-home').classList.add('active');
+  closeSidebar();
+}
+
+// ─── SIDEBAR TOGGLE ──────────────────────────────────────────────────────────
+let sidebarOpen = window.innerWidth > 640;
+
+function toggleSidebar() {
+  sidebarOpen ? closeSidebar() : openSidebar();
+}
+function openSidebar() {
+  sidebarOpen = true;
+  document.getElementById('sidebar').classList.remove('closed');
+  document.getElementById('hamburger').classList.add('open');
+  if (window.innerWidth <= 640) {
+    document.getElementById('sidebar-overlay').classList.add('visible');
+  }
+}
+function closeSidebar() {
+  if (window.innerWidth <= 640) {
+    sidebarOpen = false;
+    document.getElementById('sidebar').classList.add('closed');
+    document.getElementById('hamburger').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('visible');
+  }
+}
+
+// init sidebar state
+if (window.innerWidth <= 640) {
+  document.getElementById('sidebar').classList.add('closed');
+  sidebarOpen = false;
+}
+
+// ─── DATE ────────────────────────────────────────────────────────────────────
+function updateDate() {
+  const d = new Date();
+  document.getElementById('topbar-date').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+window.onload = () => {
+  if (loadSession()) {
+    enterApp();
+  }
+};
+</script>
+</body>
+</html>

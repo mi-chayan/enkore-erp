@@ -1,0 +1,18 @@
+{
+  "name": "ENKORE ERP",
+  "short_name": "ENKORE",
+  "description": "ENKORE Internal Operations Portal",
+  "start_url": "./enkore-erp.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "https://enkorebd.com/wp-content/uploads/2026/03/cropped-WhatsApp_Image_2026-01-24_at_1.50.39_PM__1_-removebg-preview-270x270.png",
+      "sizes": "270x270",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
