@@ -606,6 +606,23 @@ function loadSession() {
   return false;
 }
 
+// Always re-fetch fresh access rights from sheet on session restore
+async function restoreSession() {
+  if (!loadSession()) return;
+  try {
+    const creds = await fetchCredentials();
+    const fresh = creds.find(c => c.id === currentUser.id && c.pass === currentUser.pass);
+    if (!fresh) { doLogout(); return; }
+    currentUser.access = fresh.access;
+    currentUser.name   = fresh.name;
+    // Update stored session with fresh access
+    if (localStorage.getItem('enkore_session')) {
+      localStorage.setItem('enkore_session', JSON.stringify(currentUser));
+    }
+  } catch(e) {}
+  enterApp();
+}
+
 async function fetchCredentials() {
   try {
     const r = await fetch(ERP_CSV_URL);
@@ -669,7 +686,7 @@ async function doLogin() {
   }
 
   err.classList.remove('show');
-  currentUser = { id: match.id, name: match.name || match.id, access: match.access };
+  currentUser = { id: match.id, pass: match.pass, name: match.name || match.id, access: match.access };
 
   if (remember) {
     localStorage.setItem('enkore_session', JSON.stringify(currentUser));
@@ -855,7 +872,7 @@ function updateDate() {
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
-window.onload = () => { if (loadSession()) enterApp(); };
+window.onload = () => { restoreSession(); };
 </script>
 </body>
 </html>
