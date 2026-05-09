@@ -628,8 +628,8 @@ async function fetchCredentials() {
     const r = await fetch(ERP_CSV_URL);
     if (!r.ok) throw new Error('not ok');
     const csv = await r.text();
-    const lines = csv.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const lines = csv.trim().split(/\r?\n/);
+    const headers = lines[0].split(',').map(h => h.replace(/\r/g,'').trim().toLowerCase());
 
     // Find column indices
     const idIdx   = headers.indexOf('id');
@@ -639,7 +639,7 @@ async function fetchCredentials() {
     DEPT_COLUMNS.forEach(d => { deptIdxMap[d] = headers.indexOf(d); });
 
     return lines.slice(1).map(line => {
-      const parts = line.split(',').map(p => p.trim());
+      const parts = line.split(',').map(p => p.replace(/\r/g,'').trim());
       const access = DEPT_COLUMNS.filter(d => {
         const idx = deptIdxMap[d];
         return idx !== -1 && (parts[idx]||'').toUpperCase() === 'YES';
