@@ -507,9 +507,10 @@
 
     <div id="content-area">
       <div id="welcome-panel">
-        <div class="welcome-icon">📊</div>
-        <div class="welcome-title">Welcome back, <span id="welcome-name">—</span></div>
-        <div class="welcome-sub">Select a department from the sidebar or tap a card below to browse your files.</div>
+        <div class="welcome-icon">👋</div>
+        <div class="welcome-greeting" id="welcome-greeting" style="font-size:15px;color:var(--muted);margin-bottom:4px;"></div>
+        <div class="welcome-title"><span id="welcome-name">—</span></div>
+        <div class="welcome-sub">Select a department from the sidebar or tap a card below.</div>
         <div class="dept-grid" id="dept-cards"></div>
       </div>
     </div>
@@ -517,15 +518,24 @@
 </div>
 
 <script>
-// ─── DATA ───────────────────────────────────────────────────────────────────
-// Employee credentials are validated against the Google Sheet (SHEET_ID below).
-// For offline / first-load fallback, you can also hardcode IDs here.
-// The sheet should have columns: Employee ID | Password | Name
-const CREDS_SHEET_ID = 'REPLACE_WITH_YOUR_CREDENTIALS_SHEET_ID';
-// Set this to the published CSV URL of your credentials sheet:
-// File → Share → Publish to Web → CSV → copy link
-// Example: https://docs.google.com/spreadsheets/d/SHEET_ID/pub?output=csv
-const CREDS_CSV_URL  = `https://docs.google.com/spreadsheets/d/${CREDS_SHEET_ID}/pub?output=csv`;
+// ─── ERP SHEET CONFIG ────────────────────────────────────────────────────────
+// Publish your Access sheet: File > Share > Publish to Web > Sheet "Access" > CSV
+const ERP_SHEET_ID = '1mXI0MI9R_5_ImxiTvw8vH0EaQ38M3WlHncjZgmPLTmc';
+const ERP_CSV_URL  = `https://docs.google.com/spreadsheets/d/${ERP_SHEET_ID}/pub?gid=0&single=true&output=csv`;
+
+// Department column keys — must match header row in your sheet exactly
+const DEPT_COLUMNS = ['ops','ir','fin','mkt','pp','sc','sales'];
+
+// ─── FALLBACK CREDS (used when sheet is not yet published) ───────────────────
+const FALLBACK_CREDS = [
+  { id: '1011100001', pass: '1234', name: 'Mahedi Islam Chayan', access: ['ops','ir','fin','mkt','pp','sc','sales'] },
+  { id: '1011100002', pass: '1234', name: 'Anik Rahman',         access: [] },
+  { id: '1011100003', pass: '1234', name: 'Yaman Islam Siam',    access: [] },
+  { id: '1011100004', pass: '1234', name: 'Lipi Akter',          access: [] },
+  { id: '1012100005', pass: '1234', name: 'Omar Faruk',          access: [] },
+  { id: '1011100006', pass: '1234', name: 'Mizanur Rahman Ronju',access: [] },
+  { id: '1011100007', pass: '1234', name: 'Rakibul Islam Nayan', access: [] },
+];
 
 // ─── DRIVE STRUCTURE ─────────────────────────────────────────────────────────
 const DEPARTMENTS = [
@@ -561,9 +571,9 @@ const DEPARTMENTS = [
   {
     id: 'pp', icon: '🏭', label: '5. Planning & Production',
     children: [
-      { label: 'R&D Bike and Car Wash', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1IH4S12rksmoopiO0cLfDmOlDkH-_R7Qbt1naIiXlseU/edit' },
-      { label: 'R&D Polish',            type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1_23d-ao24xD1Ikqz7pZl9RsSIj0koW0wc0Iec4BCelg/edit' },
-      { label: 'Production & Packaging',type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1iBGsae1XY1Q2xb0LHUpa75ze-yalu48LjWZ6JJDk-iY/edit' },
+      { label: 'R&D Bike and Car Wash',  type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1IH4S12rksmoopiO0cLfDmOlDkH-_R7Qbt1naIiXlseU/edit' },
+      { label: 'R&D Polish',             type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1_23d-ao24xD1Ikqz7pZl9RsSIj0koW0wc0Iec4BCelg/edit' },
+      { label: 'Production & Packaging', type: 'sheet', url: 'https://docs.google.com/spreadsheets/d/1iBGsae1XY1Q2xb0LHUpa75ze-yalu48LjWZ6JJDk-iY/edit' },
     ]
   },
   {
@@ -588,52 +598,69 @@ const DEPARTMENTS = [
 // ─── AUTH ────────────────────────────────────────────────────────────────────
 let currentUser = null;
 
-// Try to load remembered session
 function loadSession() {
   const saved = localStorage.getItem('enkore_session');
   if (saved) {
-    try {
-      currentUser = JSON.parse(saved);
-      return true;
-    } catch(e) {}
+    try { currentUser = JSON.parse(saved); return true; } catch(e) {}
   }
   return false;
 }
 
-const FALLBACK_CREDS = [
-  { id: 'ADMIN',  pass: '1234', name: 'Admin' },
-  { id: 'EMP001', pass: '1234', name: 'Employee 1' },
-];
-
 async function fetchCredentials() {
-  if (CREDS_SHEET_ID === 'REPLACE_WITH_YOUR_CREDENTIALS_SHEET_ID') {
-    return FALLBACK_CREDS;
-  }
   try {
-    const r = await fetch(CREDS_CSV_URL);
-    if (!r.ok) return FALLBACK_CREDS;
+    const r = await fetch(ERP_CSV_URL);
+    if (!r.ok) throw new Error('not ok');
     const csv = await r.text();
-    const lines = csv.trim().split('\n').slice(1);
-    const parsed = lines.map(l => {
-      const parts = l.split(',');
-      return { id: (parts[0]||'').trim(), pass: (parts[1]||'').trim(), name: (parts[2]||'').trim() };
+    const lines = csv.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+    // Find column indices
+    const idIdx   = headers.indexOf('id');
+    const passIdx = headers.indexOf('pass');
+    const nameIdx = headers.indexOf('name');
+    const deptIdxMap = {};
+    DEPT_COLUMNS.forEach(d => { deptIdxMap[d] = headers.indexOf(d); });
+
+    return lines.slice(1).map(line => {
+      const parts = line.split(',').map(p => p.trim());
+      const access = DEPT_COLUMNS.filter(d => {
+        const idx = deptIdxMap[d];
+        return idx !== -1 && (parts[idx]||'').toUpperCase() === 'YES';
+      });
+      return {
+        id:   (parts[idIdx]   || '').trim(),
+        pass: (parts[passIdx] || '').trim(),
+        name: (parts[nameIdx] || '').trim(),
+        access
+      };
     }).filter(c => c.id);
-    return parsed.length ? parsed : FALLBACK_CREDS;
   } catch(e) {
+    console.warn('Using fallback credentials. Publish your Access sheet to enable live data.');
     return FALLBACK_CREDS;
   }
 }
 
 async function doLogin() {
-  const idVal   = document.getElementById('emp-id').value.trim().toUpperCase();
+  const idVal   = document.getElementById('emp-id').value.trim();
   const passVal = document.getElementById('emp-pass').value.trim();
   const remember = document.getElementById('remember-me').checked;
-  const err = document.getElementById('login-error');
+  const err     = document.getElementById('login-error');
+  const btn     = document.querySelector('.btn-login');
 
-  if (!idVal || !passVal) { err.textContent = 'Please enter both fields.'; err.classList.add('show'); return; }
+  if (!idVal || !passVal) {
+    err.textContent = 'Please enter both fields.';
+    err.classList.add('show');
+    return;
+  }
+
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
 
   const creds = await fetchCredentials();
-  const match = creds.find(c => c.id.toUpperCase() === idVal && c.pass === passVal);
+  const match = creds.find(c => c.id === idVal && c.pass === passVal);
+
+  btn.textContent = 'Sign In';
+  btn.disabled = false;
 
   if (!match) {
     err.textContent = 'Incorrect Employee ID or Password.';
@@ -642,7 +669,7 @@ async function doLogin() {
   }
 
   err.classList.remove('show');
-  currentUser = { id: match.id, name: match.name || match.id };
+  currentUser = { id: match.id, name: match.name || match.id, access: match.access };
 
   if (remember) {
     localStorage.setItem('enkore_session', JSON.stringify(currentUser));
@@ -660,22 +687,31 @@ function doLogout() {
   document.getElementById('emp-pass').value = '';
 }
 
-// allow Enter key to login
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !document.getElementById('login-screen').classList.contains('hidden')) {
     doLogin();
   }
 });
 
+// ─── GREETING ────────────────────────────────────────────────────────────────
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 // ─── ENTER APP ───────────────────────────────────────────────────────────────
 function enterApp() {
-  const name = currentUser.name || currentUser.id;
+  const name     = currentUser.name || currentUser.id;
+  const firstName = name.split(' ')[0];
   const initials = name.slice(0,2).toUpperCase();
 
-  document.getElementById('user-avatar').textContent = initials;
-  document.getElementById('user-name-display').textContent = name;
-  document.getElementById('user-id-display').textContent = 'ID: ' + currentUser.id;
-  document.getElementById('welcome-name').textContent = name.split(' ')[0];
+  document.getElementById('user-avatar').textContent        = initials;
+  document.getElementById('user-name-display').textContent  = name;
+  document.getElementById('user-id-display').textContent    = 'ID: ' + currentUser.id;
+  document.getElementById('welcome-greeting').textContent   = getGreeting() + ',';
+  document.getElementById('welcome-name').textContent       = firstName + '!';
 
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.add('visible');
@@ -685,23 +721,29 @@ function enterApp() {
   updateDate();
 }
 
-// ─── FILE TYPE ICONS (real Google SVG logos) ─────────────────────────────────
+// ─── FILE TYPE ICONS ─────────────────────────────────────────────────────────
 function fileIcon(type) {
   if (type === 'sheet') return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#0F9D58"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#87CEAC"/><path d="M4 10h10v1H4zm0 2h10v1H4zm0 2h7v1H4z" fill="#fff"/><path d="M4 8h10v1.5H4z" fill="#fff"/></svg>`;
   if (type === 'doc')   return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#4285F4"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#A8C7FA"/><path d="M4 9h10v1H4zm0 2h10v1H4zm0 2h7v1H4z" fill="#fff"/></svg>`;
   if (type === 'form')  return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#7B4EA6"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#C4A8E8"/><circle cx="5.5" cy="9" r="1" fill="#fff"/><circle cx="5.5" cy="12" r="1" fill="#fff"/><path d="M7.5 8.5h5v1h-5zm0 3h5v1h-5z" fill="#fff"/></svg>`;
-  if (type === 'pdf')   return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#EA4335"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#F8ABA6"/><text x="3" y="15" font-size="5" fill="#fff" font-family="sans-serif" font-weight="bold">PDF</text></svg>`;
-  return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#5F6368"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#BDC1C6"/></svg>`;
+  return `<svg class="file-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M11 0H2C.9 0 0 .9 0 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-7-7z" fill="#EA4335"/><path d="M11 0v5c0 1.1.9 2 2 2h5L11 0z" fill="#F8ABA6"/></svg>`;
 }
 
-// ─── NAV BUILDER ─────────────────────────────────────────────────────────────
+// ─── NAV BUILDER (access-filtered) ───────────────────────────────────────────
 function buildNav() {
-  const nav = document.getElementById('dept-nav');
+  const nav    = document.getElementById('dept-nav');
+  const access = currentUser.access || [];
   nav.innerHTML = '<div class="nav-section-label">Departments</div>';
 
-  DEPARTMENTS.forEach(dept => {
-    const wrap = document.createElement('div');
+  const allowed = DEPARTMENTS.filter(d => access.includes(d.id));
 
+  if (allowed.length === 0) {
+    nav.innerHTML += '<div style="padding:16px;font-size:13px;color:#555;text-align:center;">No departments assigned.<br>Contact your admin.</div>';
+    return;
+  }
+
+  allowed.forEach(dept => {
+    const wrap = document.createElement('div');
     const item = document.createElement('div');
     item.className = 'nav-item';
     item.innerHTML = `<span class="nav-icon">${dept.icon}</span>
@@ -723,19 +765,20 @@ function buildNav() {
 
 function buildSubItems(children) {
   if (!children || children.length === 0) return '<div style="padding:8px 12px;font-size:12px;color:#555;">No files yet</div>';
-  return children.map(c => {
-    return `<div class="sub-item" onclick="openFile('${c.url}')">
-              ${fileIcon(c.type)}
-              <span style="flex:1">${c.label}</span>
-              <span class="ext-arrow">↗</span>
-            </div>`;
-  }).join('');
+  return children.map(c =>
+    `<div class="sub-item" onclick="openFile('${c.url}')">
+      ${fileIcon(c.type)}
+      <span style="flex:1">${c.label}</span>
+      <span class="ext-arrow">↗</span>
+    </div>`
+  ).join('');
 }
 
 let openDept = null;
 function toggleNav(id) {
   const item = document.getElementById('nav-dept-' + id);
   const sub  = document.getElementById('sub-' + id);
+  if (!item || !sub) return;
 
   if (openDept && openDept !== id) {
     document.getElementById('nav-dept-' + openDept)?.classList.remove('open');
@@ -748,24 +791,26 @@ function toggleNav(id) {
   openDept = isOpen ? null : id;
 }
 
-// ─── DEPT CARDS ──────────────────────────────────────────────────────────────
+// ─── DEPT CARDS (access-filtered) ────────────────────────────────────────────
 function buildDeptCards() {
-  const grid = document.getElementById('dept-cards');
-  grid.innerHTML = DEPARTMENTS.map(d => `
-    <div class="dept-card" onclick="toggleNav('${d.id}');openSidebar();">
-      <div class="dept-card-icon">${d.icon}</div>
-      <div class="dept-card-name">${d.label}</div>
-    </div>
-  `).join('');
+  const grid   = document.getElementById('dept-cards');
+  const access = currentUser.access || [];
+  const allowed = DEPARTMENTS.filter(d => access.includes(d.id));
+
+  grid.innerHTML = allowed.length
+    ? allowed.map(d => `
+        <div class="dept-card" onclick="toggleNav('${d.id}');openSidebar();">
+          <div class="dept-card-icon">${d.icon}</div>
+          <div class="dept-card-name">${d.label}</div>
+        </div>`).join('')
+    : '<div style="color:#555;font-size:13px;">No departments assigned.</div>';
 }
 
-// ─── OPEN FILE IN NEW TAB ─────────────────────────────────────────────────────
+// ─── OPEN FILE ────────────────────────────────────────────────────────────────
 function openFile(url) {
   if (!url) return;
   const a = document.createElement('a');
-  a.href = url;
-  a.target = '_blank';
-  a.rel = 'noopener';
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -779,19 +824,15 @@ function showHome() {
   closeSidebar();
 }
 
-// ─── SIDEBAR TOGGLE ──────────────────────────────────────────────────────────
+// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
 let sidebarOpen = window.innerWidth > 640;
 
-function toggleSidebar() {
-  sidebarOpen ? closeSidebar() : openSidebar();
-}
+function toggleSidebar() { sidebarOpen ? closeSidebar() : openSidebar(); }
 function openSidebar() {
   sidebarOpen = true;
   document.getElementById('sidebar').classList.remove('closed');
   document.getElementById('hamburger').classList.add('open');
-  if (window.innerWidth <= 640) {
-    document.getElementById('sidebar-overlay').classList.add('visible');
-  }
+  if (window.innerWidth <= 640) document.getElementById('sidebar-overlay').classList.add('visible');
 }
 function closeSidebar() {
   if (window.innerWidth <= 640) {
@@ -802,7 +843,6 @@ function closeSidebar() {
   }
 }
 
-// init sidebar state
 if (window.innerWidth <= 640) {
   document.getElementById('sidebar').classList.add('closed');
   sidebarOpen = false;
@@ -810,16 +850,12 @@ if (window.innerWidth <= 640) {
 
 // ─── DATE ────────────────────────────────────────────────────────────────────
 function updateDate() {
-  const d = new Date();
-  document.getElementById('topbar-date').textContent = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+  document.getElementById('topbar-date').textContent =
+    new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
-window.onload = () => {
-  if (loadSession()) {
-    enterApp();
-  }
-};
+window.onload = () => { if (loadSession()) enterApp(); };
 </script>
 </body>
 </html>
