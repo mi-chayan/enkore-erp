@@ -521,21 +521,14 @@
 // ─── ERP SHEET CONFIG ────────────────────────────────────────────────────────
 // Publish your Access sheet: File > Share > Publish to Web > Sheet "Access" > CSV
 const ERP_SHEET_ID = '1mXI0MI9R_5_ImxiTvw8vH0EaQ38M3WlHncjZgmPLTmc';
-const ERP_CSV_URL  = `https://docs.google.com/spreadsheets/d/${ERP_SHEET_ID}/pub?gid=0&single=true&output=csv`;
+const ERP_CSV_URL  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQro5SnSAw5vaygRqudtr6TybNMYDYm4BVVTqQ2JFfW94e5PhjSLeDNlbUAdJGAO54kIb1vkPmVKntR/pub?gid=0&single=true&output=csv';
 
 // Department column keys — must match header row in your sheet exactly
 const DEPT_COLUMNS = ['ops','ir','fin','mkt','pp','sc','sales'];
 
 // ─── FALLBACK CREDS (used when sheet is not yet published) ───────────────────
-const FALLBACK_CREDS = [
-  { id: '1011100001', pass: '1234', name: 'Mahedi Islam Chayan', access: ['ops','ir','fin','mkt','pp','sc','sales'] },
-  { id: '1011100002', pass: '1234', name: 'Anik Rahman',         access: [] },
-  { id: '1011100003', pass: '1234', name: 'Yaman Islam Siam',    access: [] },
-  { id: '1011100004', pass: '1234', name: 'Lipi Akter',          access: [] },
-  { id: '1012100005', pass: '1234', name: 'Omar Faruk',          access: [] },
-  { id: '1011100006', pass: '1234', name: 'Mizanur Rahman Ronju',access: [] },
-  { id: '1011100007', pass: '1234', name: 'Rakibul Islam Nayan', access: [] },
-];
+// No fallback credentials — sheet must be accessible
+const FALLBACK_CREDS = [];
 
 // ─── DRIVE STRUCTURE ─────────────────────────────────────────────────────────
 const DEPARTMENTS = [
@@ -652,7 +645,7 @@ async function fetchCredentials() {
       };
     }).filter(c => c.id);
   } catch(e) {
-    console.warn('Using fallback credentials. Publish your Access sheet to enable live data.');
+    console.warn('Sheet fetch failed:', e);
     return FALLBACK_CREDS;
   }
 }
@@ -678,6 +671,12 @@ async function doLogin() {
 
   btn.textContent = 'Sign In';
   btn.disabled = false;
+
+  if (creds.length === 0) {
+    err.textContent = 'Cannot reach employee database. Contact admin.';
+    err.classList.add('show');
+    return;
+  }
 
   if (!match) {
     err.textContent = 'Incorrect Employee ID or Password.';
